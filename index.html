@@ -290,8 +290,8 @@
                         <td class="p-4 text-center">
                             <div class="flex flex-col gap-1 items-center">
                                 <div class="flex gap-1">
-                                    <button onclick="moveRow(${index}, -1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === 0 ? 'invisible' : ''}" title="上移">↑</button>
-                                    <button onclick="moveRow(${index}, 1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === data.commissions.length - 1 ? 'invisible' : ''}" title="下移">↓</button>
+                                    <button onclick="moveRow(${index}, -1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === 0 ? 'invisible' : ''}" title="上移">▲</button>
+                                    <button onclick="moveRow(${index}, 1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === data.commissions.length - 1 ? 'invisible' : ''}" title="下移">▼</button>
                                 </div>
                                 <button onclick="deleteRow(${index})" class="text-xs text-red-400 hover:text-red-600 mt-1">刪除</button>
                             </div>
