@@ -44,7 +44,6 @@
             z-index: 100;
         }
 
-        /* 調整按鈕樣式 */
         .btn-move {
             padding: 2px 6px;
             font-size: 12px;
@@ -65,8 +64,13 @@
 
     <!-- 左側選單 -->
     <aside id="sidebar" class="w-64 bg-white border-r h-screen sticky top-0 hidden flex-col">
-        <div class="p-6 border-b">
+        <div class="p-6 border-b flex justify-between items-center">
             <h2 class="font-bold text-lg text-gray-800">歷史排單表</h2>
+        </div>
+        <div class="p-4 border-b">
+            <button onclick="createBlankHistory()" class="w-full bg-gray-800 hover:bg-black text-white py-2 rounded-lg text-sm transition">
+                + 新增歷史表
+            </button>
         </div>
         <div id="historyList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
     </aside>
@@ -74,7 +78,12 @@
     <main class="flex-1 p-8">
         <header class="flex justify-between items-center mb-10">
             <div>
-                <h1 id="tableTitle" class="text-3xl font-bold text-gray-900">載入中...</h1>
+                <div class="flex items-center gap-4">
+                    <h1 id="tableTitle" class="text-3xl font-bold text-gray-900">載入中...</h1>
+                    <button id="deleteHistoryBtn" onclick="deleteHistoryTable()" class="hidden bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1 rounded text-sm transition">
+                        刪除此歷史表
+                    </button>
+                </div>
                 <p class="text-gray-500 mt-2">最後更新：<span id="updateTime">---</span></p>
             </div>
             
@@ -84,7 +93,7 @@
                         <span class="text-sm text-blue-600 font-medium">總金額：$</span>
                         <span id="totalAmount" class="text-blue-700 font-bold">0</span>
                     </div>
-                    <button onclick="archiveCurrentTable()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm transition">
+                    <button id="archiveBtn" onclick="archiveCurrentTable()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm transition">
                         存入歷史並新增
                     </button>
                     <button onclick="logout()" class="text-gray-400 hover:text-red-500 transition">
@@ -125,7 +134,6 @@
         </div>
     </main>
 
-    <!-- Modal -->
     <div id="customModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl shadow-xl w-80">
             <h3 id="modalTitle" class="text-lg font-bold mb-4">管理員登入</h3>
@@ -141,10 +149,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /** * [重要] GitHub 部署必做步驟：
-         * 請將下方的內容替換為你在 Firebase 控制台取得的 SDK 配置資訊。
+        /** * [重要] GitHub 部署請更換此 Config
          */
         const firebaseConfig = {
             apiKey: "AIzaSyALtj1ceOZbR9xr7MpfU8lVf7HBKIbtuUU",
@@ -210,8 +217,6 @@
                 }
                 if (viewingTableId === 'current') renderTable(currentTableData);
                 document.getElementById('loading').classList.add('hidden');
-            }, (error) => {
-                console.error("Snapshot error (current):", error);
             });
 
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
@@ -219,6 +224,11 @@
                 historyData = [];
                 querySnapshot.forEach((doc) => historyData.push({ ...doc.data(), firebaseId: doc.id }));
                 updateSidebar();
+                if (viewingTableId !== 'current') {
+                    const table = historyData.find(h => h.firebaseId === viewingTableId);
+                    if (table) renderTable(table);
+                    else { viewingTableId = 'current'; renderTable(currentTableData); }
+                }
             });
         }
 
@@ -229,24 +239,34 @@
             const titleDisplay = document.getElementById('tableTitle');
             const updateDisplay = document.getElementById('updateTime');
             const adminHeaders = document.querySelectorAll('.admin-only-header');
+            const deleteHistoryBtn = document.getElementById('deleteHistoryBtn');
+            const archiveBtn = document.getElementById('archiveBtn');
 
             tbody.innerHTML = '';
             titleDisplay.innerText = data.title;
             updateDisplay.innerText = data.lastUpdate;
 
             let total = 0;
-            const isEditing = isAdmin && viewingTableId === 'current';
+            const isEditing = isAdmin; // 現在歷史表也能編輯
 
             adminHeaders.forEach(h => isAdmin ? h.classList.remove('hidden') : h.classList.add('hidden'));
+            
+            // 處理歷史表專屬按鈕
+            if (isAdmin && viewingTableId !== 'current') {
+                deleteHistoryBtn.classList.remove('hidden');
+                archiveBtn.classList.add('hidden');
+            } else {
+                deleteHistoryBtn.classList.add('hidden');
+                if (isAdmin) archiveBtn.classList.remove('hidden');
+            }
 
             data.commissions.forEach((com, index) => {
                 total += parseInt(com.price || 0);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0";
                 
-                // 動態生成操作按鈕
                 let actionButtons = '-';
-                if (isAdmin && viewingTableId === 'current') {
+                if (isAdmin) {
                     actionButtons = `
                         <div class="flex items-center justify-center gap-2">
                             <button onclick="moveRow(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700">▲</button>
@@ -269,22 +289,106 @@
             totalDisplay.innerText = total.toLocaleString();
         };
 
-        // 新增：移動列的邏輯
         window.moveRow = function(index, direction) {
-            if (!isAdmin || viewingTableId !== 'current') return;
+            if (!isAdmin) return;
+            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            if (!targetData) return;
+
             const newIndex = index + direction;
-            
-            // 邊界安全檢查
-            if (newIndex < 0 || newIndex >= currentTableData.commissions.length) return;
+            if (newIndex < 0 || newIndex >= targetData.commissions.length) return;
 
-            // 交換陣列元素
-            const temp = currentTableData.commissions[index];
-            currentTableData.commissions[index] = currentTableData.commissions[newIndex];
-            currentTableData.commissions[newIndex] = temp;
+            const temp = targetData.commissions[index];
+            targetData.commissions[index] = targetData.commissions[newIndex];
+            targetData.commissions[newIndex] = temp;
 
-            currentTableData.lastUpdate = new Date().toLocaleString();
-            saveCurrentToCloud();
+            targetData.lastUpdate = new Date().toLocaleString() + (viewingTableId === 'current' ? "" : " (已編輯)");
+            saveSpecificTableToCloud(viewingTableId, targetData);
         };
+
+        async function saveSpecificTableToCloud(id, data) {
+            if (!user || !data) return;
+            const docRef = (id === 'current') 
+                ? doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current')
+                : doc(db, 'artifacts', appId, 'public', 'data', 'history', id);
+            
+            // 如果是歷史資料，移除 firebaseId 欄位再存入以免衝突
+            const uploadData = { ...data };
+            if (uploadData.firebaseId) delete uploadData.firebaseId;
+            
+            await setDoc(docRef, uploadData);
+        }
+
+        window.updateRow = function(index, field, value) {
+            if (!isAdmin) return;
+            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            if (!targetData) return;
+
+            targetData.commissions[index][field] = field === 'price' ? parseInt(value) || 0 : value;
+            targetData.lastUpdate = new Date().toLocaleString() + (viewingTableId === 'current' ? "" : " (已編輯)");
+            saveSpecificTableToCloud(viewingTableId, targetData);
+        };
+
+        window.addCommission = function() {
+            if (!isAdmin) return;
+            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            if (!targetData) return;
+
+            targetData.commissions.push({ id: '新委託人', source: '-', status: '待付款', content: '無', price: 0 });
+            saveSpecificTableToCloud(viewingTableId, targetData);
+        };
+
+        window.deleteRow = function(index) {
+            if (!isAdmin || !confirm('確定刪除？')) return;
+            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            if (!targetData) return;
+
+            targetData.commissions.splice(index, 1);
+            saveSpecificTableToCloud(viewingTableId, targetData);
+        };
+
+        // 歷史表刪除功能
+        window.deleteHistoryTable = async function() {
+            if (!isAdmin || viewingTableId === 'current' || !confirm('警告：確定要永久刪除這張歷史排單表嗎？此操作無法復原。')) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', viewingTableId);
+            await deleteDoc(docRef);
+            viewingTableId = 'current';
+            toggleAdminUI();
+            alert('已刪除歷史紀錄');
+        };
+
+        // 手動新增空白歷史表
+        window.createBlankHistory = async function() {
+            if (!isAdmin) return;
+            const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+            const newDoc = await addDoc(historyColRef, {
+                title: "手動新增排單表",
+                lastUpdate: new Date().toLocaleString(),
+                archivedAt: Timestamp.now(),
+                commissions: []
+            });
+            viewingTableId = newDoc.id;
+            toggleAdminUI();
+        };
+
+        document.getElementById('titleInput').oninput = (e) => {
+            if (!isAdmin) return;
+            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            if (!targetData) return;
+            targetData.title = e.target.value;
+            saveSpecificTableToCloud(viewingTableId, targetData);
+        };
+
+        window.archiveCurrentTable = async function() {
+            if (!isAdmin || !confirm('確定存入歷史並清空當前排單？')) return;
+            const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+            await addDoc(historyColRef, { ...currentTableData, archivedAt: Timestamp.now() });
+            currentTableData = { title: "新委託排單表 (" + new Date().toLocaleDateString() + ")", lastUpdate: new Date().toLocaleString(), commissions: [] };
+            await saveCurrentToCloud();
+            alert('已成功存檔');
+        };
+
+        // 兼容原有的 saveCurrentToCloud
+        async function saveCurrentToCloud() { await saveSpecificTableToCloud('current', currentTableData); }
 
         function getStatusClass(status) {
             const classes = { '待付款': 'status-pending', '繪製中': 'status-drawing', '靜態確認': 'status-checking', '已交稿': 'status-delivered', '已完成': 'status-completed', '取消排單': 'status-cancelled' };
@@ -313,14 +417,16 @@
             const editActions = document.getElementById('editActions');
             const editTitleSection = document.getElementById('editTitleSection');
             const tableTitle = document.getElementById('tableTitle');
+            const titleInput = document.getElementById('titleInput');
 
             if (isAdmin) {
                 adminControls.classList.remove('hidden'); loginBtn.classList.add('hidden');
                 sidebar.classList.remove('hidden'); sidebar.classList.add('flex');
-                if (viewingTableId === 'current') {
-                    editActions.classList.remove('hidden'); editTitleSection.classList.remove('hidden');
-                    tableTitle.classList.add('hidden'); document.getElementById('titleInput').value = currentTableData.title;
-                }
+                editActions.classList.remove('hidden'); editTitleSection.classList.remove('hidden');
+                tableTitle.classList.add('hidden');
+                
+                const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+                if (targetData) titleInput.value = targetData.title;
             } else {
                 adminControls.classList.add('hidden'); loginBtn.classList.remove('hidden');
                 sidebar.classList.add('hidden'); editActions.classList.add('hidden');
@@ -328,46 +434,6 @@
             }
             renderTable(viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId));
         }
-
-        async function saveCurrentToCloud() {
-            if (!user || !currentTableData) return;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current');
-            await setDoc(docRef, currentTableData);
-        }
-
-        window.updateRow = function(index, field, value) {
-            if (!isAdmin || viewingTableId !== 'current') return;
-            currentTableData.commissions[index][field] = field === 'price' ? parseInt(value) || 0 : value;
-            currentTableData.lastUpdate = new Date().toLocaleString();
-            saveCurrentToCloud();
-        };
-
-        window.addCommission = function() {
-            if (!isAdmin || viewingTableId !== 'current') return;
-            currentTableData.commissions.push({ id: '新委託人', source: '-', status: '待付款', content: '無', price: 0 });
-            saveCurrentToCloud();
-        };
-
-        window.deleteRow = function(index) {
-            if (!isAdmin || viewingTableId !== 'current' || !confirm('確定刪除？')) return;
-            currentTableData.commissions.splice(index, 1);
-            saveCurrentToCloud();
-        };
-
-        document.getElementById('titleInput').oninput = (e) => {
-            if (!isAdmin || viewingTableId !== 'current') return;
-            currentTableData.title = e.target.value;
-            saveCurrentToCloud();
-        };
-
-        window.archiveCurrentTable = async function() {
-            if (!isAdmin || !confirm('確定存入歷史並清空當前排單？')) return;
-            const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            await addDoc(historyColRef, { ...currentTableData, archivedAt: Timestamp.now() });
-            currentTableData = { title: "新委託排單表 (" + new Date().toLocaleDateString() + ")", lastUpdate: new Date().toLocaleString(), commissions: [] };
-            await saveCurrentToCloud();
-            alert('已成功存檔');
-        };
 
         function updateSidebar() {
             const list = document.getElementById('historyList');
