@@ -3,16 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>流草的委託排單表</title>
+    <title>▍流草的委託排單表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f9fafb;
-            color: #1f2937;
+            transition: background-color 0.3s, color 0.3s;
         }
+
+        /* 深色模式樣式 */
+        body.dark-mode {
+            background-color: #111827;
+            color: #f3f4f6;
+        }
+        .dark-mode aside { background-color: #1f2937; border-color: #374151; }
+        .dark-mode main { background-color: #111827; }
+        .dark-mode header h1 { color: #ffffff; }
+        .dark-mode .bg-white { background-color: #1f2937; border-color: #374151; }
+        .dark-mode .text-gray-900 { color: #f3f4f6; }
+        .dark-mode .text-gray-600 { color: #d1d5db; }
+        .dark-mode .text-gray-500 { color: #9ca3af; }
+        .dark-mode .bg-gray-50 { background-color: #374151; color: #e5e7eb; }
+        .dark-mode border-b { border-color: #374151; }
+        .dark-mode tr:hover { background-color: #2d3748; }
+        .dark-mode input, .dark-mode select { background-color: #374151; border-color: #4b5563; color: white; }
+        .dark-mode .border-gray-100 { border-color: #374151; }
 
         .blurred {
             filter: blur(5px);
@@ -54,20 +71,24 @@
             opacity: 0.3;
             cursor: not-allowed;
         }
+
+        .drag-over {
+            border-top: 3px solid #6366f1 !important;
+        }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen flex bg-gray-50 text-gray-800">
 
     <div id="loading" class="loading-overlay">
         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
     </div>
 
     <!-- 左側選單 -->
-    <aside id="sidebar" class="w-64 bg-white border-r h-screen sticky top-0 hidden flex-col">
-        <div class="p-6 border-b flex justify-between items-center">
-            <h2 class="font-bold text-lg text-gray-800">歷史排單表</h2>
+    <aside id="sidebar" class="w-64 bg-white border-r h-screen sticky top-0 hidden flex-col transition-colors duration-300">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="font-bold text-lg text-gray-800 dark:text-white">歷史排單表</h2>
         </div>
-        <div class="p-4 border-b">
+        <div class="p-4 border-b border-gray-100">
             <button onclick="createBlankHistory()" class="w-full bg-gray-800 hover:bg-black text-white py-2 rounded-lg text-sm transition">
                 + 新增歷史表
             </button>
@@ -75,7 +96,7 @@
         <div id="historyList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
     </aside>
 
-    <main class="flex-1 p-8">
+    <main class="flex-1 p-8 transition-colors duration-300">
         <header class="flex justify-between items-center mb-10">
             <div>
                 <div class="flex items-center gap-4">
@@ -88,6 +109,11 @@
             </div>
             
             <div class="flex items-center gap-4">
+                <!-- 深色模式切換按鈕 -->
+                <button onclick="toggleDarkMode()" class="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-100 transition shadow-sm flex items-center justify-center w-10 h-10">
+                    <span id="modeIcon">🌙</span>
+                </button>
+
                 <div id="adminControls" class="hidden flex items-center gap-3">
                     <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
                         <span class="text-sm text-blue-600 font-medium">總金額：$</span>
@@ -106,8 +132,8 @@
             </div>
         </header>
 
-        <div class="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
-            <div class="p-6 border-b flex justify-between items-center">
+        <div class="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden transition-colors duration-300">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
                 <div id="editTitleSection" class="hidden flex-1 mr-4">
                     <input type="text" id="titleInput" class="w-full border p-2 rounded text-xl font-bold" placeholder="輸入排單表標題...">
                 </div>
@@ -135,11 +161,11 @@
     </main>
 
     <div id="customModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-xl w-80">
-            <h3 id="modalTitle" class="text-lg font-bold mb-4">管理員登入</h3>
-            <input type="password" id="modalInput" class="w-full border p-2 rounded mb-4" placeholder="請輸入密碼...">
+        <div class="bg-white p-6 rounded-xl shadow-xl w-80 dark:bg-gray-800">
+            <h3 id="modalTitle" class="text-lg font-bold mb-4 dark:text-white">管理員登入</h3>
+            <input type="password" id="modalInput" class="w-full border p-2 rounded mb-4 dark:bg-gray-700 dark:text-white" placeholder="請輸入密碼...">
             <div class="flex justify-end gap-2">
-                <button onclick="closeModal()" class="px-4 py-2 text-gray-500">取消</button>
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700">取消</button>
                 <button id="modalConfirm" class="px-4 py-2 bg-blue-600 text-white rounded">確認</button>
             </div>
         </div>
@@ -149,9 +175,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /** * [重要] GitHub 部署請更換此 Config
+        /** * [重要] GitHub 部署時填寫你的 Firebase Config
          */
         const firebaseConfig = {
             apiKey: "AIzaSyALtj1ceOZbR9xr7MpfU8lVf7HBKIbtuUU",
@@ -172,9 +198,11 @@
 
         let user = null;
         let isAdmin = false;
+        let isDarkMode = false;
         let currentTableData = null;
         let historyData = [];
         let viewingTableId = 'current';
+        let draggedId = null;
         let unsubscribeCurrent = null;
         let unsubscribeHistory = null;
 
@@ -196,7 +224,7 @@
                 });
             } catch (err) {
                 console.error("Auth Error:", err);
-                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500 font-bold'>驗證失敗，請檢查 Firebase 配置。</div>`;
+                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500 font-bold text-center'>驗證失敗，請檢查 Firebase 配置。</div>`;
             }
         };
 
@@ -223,6 +251,8 @@
             unsubscribeHistory = onSnapshot(historyColRef, (querySnapshot) => {
                 historyData = [];
                 querySnapshot.forEach((doc) => historyData.push({ ...doc.data(), firebaseId: doc.id }));
+                // 拖拽排序依據：order 欄位 > 時間
+                historyData.sort((a, b) => (a.order || 0) - (b.order || 0));
                 updateSidebar();
                 if (viewingTableId !== 'current') {
                     const table = historyData.find(h => h.firebaseId === viewingTableId);
@@ -231,6 +261,13 @@
                 }
             });
         }
+
+        // 深色模式切換
+        window.toggleDarkMode = function() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            document.getElementById('modeIcon').innerText = isDarkMode ? '☀️' : '🌙';
+        };
 
         window.renderTable = function(data) {
             if (!data) return;
@@ -247,11 +284,10 @@
             updateDisplay.innerText = data.lastUpdate;
 
             let total = 0;
-            const isEditing = isAdmin; // 現在歷史表也能編輯
+            const isEditing = isAdmin;
 
             adminHeaders.forEach(h => isAdmin ? h.classList.remove('hidden') : h.classList.add('hidden'));
             
-            // 處理歷史表專屬按鈕
             if (isAdmin && viewingTableId !== 'current') {
                 deleteHistoryBtn.classList.remove('hidden');
                 archiveBtn.classList.add('hidden');
@@ -263,14 +299,14 @@
             data.commissions.forEach((com, index) => {
                 total += parseInt(com.price || 0);
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0";
+                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0 dark:border-gray-700 dark:hover:bg-gray-800";
                 
                 let actionButtons = '-';
                 if (isAdmin) {
                     actionButtons = `
                         <div class="flex items-center justify-center gap-2">
-                            <button onclick="moveRow(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700">▲</button>
-                            <button onclick="moveRow(${index}, 1)" ${index === data.commissions.length - 1 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700">▼</button>
+                            <button onclick="moveRow(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white">▲</button>
+                            <button onclick="moveRow(${index}, 1)" ${index === data.commissions.length - 1 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white">▼</button>
                             <button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600 ml-2">刪除</button>
                         </div>
                     `;
@@ -278,7 +314,7 @@
 
                 tr.innerHTML = `
                     <td class="p-4">${isEditing ? `<input type="text" value="${com.id}" onchange="updateRow(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
-                    <td class="p-4 text-gray-600">${isEditing ? `<input type="text" value="${com.source}" onchange="updateRow(${index}, 'source', this.value)" class="border p-1 rounded w-full">` : com.source}</td>
+                    <td class="p-4">${isEditing ? `<input type="text" value="${com.source}" onchange="updateRow(${index}, 'source', this.value)" class="border p-1 rounded w-full">` : com.source}</td>
                     <td class="p-4">${isEditing ? `<select onchange="updateRow(${index}, 'status', this.value)" class="border p-1 rounded w-full">${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}</select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}</td>
                     <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="text" value="${com.content}" onchange="updateRow(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
                     <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="number" value="${com.price}" onchange="updateRow(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${(com.price || 0).toLocaleString()}`}</td>
@@ -293,14 +329,11 @@
             if (!isAdmin) return;
             const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
             if (!targetData) return;
-
             const newIndex = index + direction;
             if (newIndex < 0 || newIndex >= targetData.commissions.length) return;
-
             const temp = targetData.commissions[index];
             targetData.commissions[index] = targetData.commissions[newIndex];
             targetData.commissions[newIndex] = temp;
-
             targetData.lastUpdate = new Date().toLocaleString() + (viewingTableId === 'current' ? "" : " (已編輯)");
             saveSpecificTableToCloud(viewingTableId, targetData);
         };
@@ -310,11 +343,8 @@
             const docRef = (id === 'current') 
                 ? doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current')
                 : doc(db, 'artifacts', appId, 'public', 'data', 'history', id);
-            
-            // 如果是歷史資料，移除 firebaseId 欄位再存入以免衝突
             const uploadData = { ...data };
             if (uploadData.firebaseId) delete uploadData.firebaseId;
-            
             await setDoc(docRef, uploadData);
         }
 
@@ -322,7 +352,6 @@
             if (!isAdmin) return;
             const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
             if (!targetData) return;
-
             targetData.commissions[index][field] = field === 'price' ? parseInt(value) || 0 : value;
             targetData.lastUpdate = new Date().toLocaleString() + (viewingTableId === 'current' ? "" : " (已編輯)");
             saveSpecificTableToCloud(viewingTableId, targetData);
@@ -332,7 +361,6 @@
             if (!isAdmin) return;
             const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
             if (!targetData) return;
-
             targetData.commissions.push({ id: '新委託人', source: '-', status: '待付款', content: '無', price: 0 });
             saveSpecificTableToCloud(viewingTableId, targetData);
         };
@@ -341,14 +369,12 @@
             if (!isAdmin || !confirm('確定刪除？')) return;
             const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
             if (!targetData) return;
-
             targetData.commissions.splice(index, 1);
             saveSpecificTableToCloud(viewingTableId, targetData);
         };
 
-        // 歷史表刪除功能
         window.deleteHistoryTable = async function() {
-            if (!isAdmin || viewingTableId === 'current' || !confirm('警告：確定要永久刪除這張歷史排單表嗎？此操作無法復原。')) return;
+            if (!isAdmin || viewingTableId === 'current' || !confirm('警告：確定要永久刪除這張歷史排單表嗎？')) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', viewingTableId);
             await deleteDoc(docRef);
             viewingTableId = 'current';
@@ -356,14 +382,15 @@
             alert('已刪除歷史紀錄');
         };
 
-        // 手動新增空白歷史表
         window.createBlankHistory = async function() {
             if (!isAdmin) return;
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+            const nextOrder = historyData.length > 0 ? Math.max(...historyData.map(h => h.order || 0)) + 1 : 0;
             const newDoc = await addDoc(historyColRef, {
                 title: "手動新增排單表",
                 lastUpdate: new Date().toLocaleString(),
                 archivedAt: Timestamp.now(),
+                order: nextOrder,
                 commissions: []
             });
             viewingTableId = newDoc.id;
@@ -381,13 +408,13 @@
         window.archiveCurrentTable = async function() {
             if (!isAdmin || !confirm('確定存入歷史並清空當前排單？')) return;
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            await addDoc(historyColRef, { ...currentTableData, archivedAt: Timestamp.now() });
+            const nextOrder = historyData.length > 0 ? Math.max(...historyData.map(h => h.order || 0)) + 1 : 0;
+            await addDoc(historyColRef, { ...currentTableData, archivedAt: Timestamp.now(), order: nextOrder });
             currentTableData = { title: "新委託排單表 (" + new Date().toLocaleDateString() + ")", lastUpdate: new Date().toLocaleString(), commissions: [] };
             await saveCurrentToCloud();
             alert('已成功存檔');
         };
 
-        // 兼容原有的 saveCurrentToCloud
         async function saveCurrentToCloud() { await saveSpecificTableToCloud('current', currentTableData); }
 
         function getStatusClass(status) {
@@ -424,7 +451,6 @@
                 sidebar.classList.remove('hidden'); sidebar.classList.add('flex');
                 editActions.classList.remove('hidden'); editTitleSection.classList.remove('hidden');
                 tableTitle.classList.add('hidden');
-                
                 const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
                 if (targetData) titleInput.value = targetData.title;
             } else {
@@ -433,23 +459,72 @@
                 editTitleSection.classList.add('hidden'); tableTitle.classList.remove('hidden');
             }
             renderTable(viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId));
+            updateSidebar(); // 刷新拖拽狀態
         }
 
+        // 側邊欄拖拽排序邏輯
         function updateSidebar() {
             const list = document.getElementById('historyList');
             list.innerHTML = '';
+            
+            // 目前排單 (不可拖拽)
             const currentBtn = document.createElement('button');
-            currentBtn.className = `w-full text-left p-3 rounded-lg font-medium text-sm border ${viewingTableId === 'current' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
-            currentBtn.innerText = "● 目前排單";
+            currentBtn.className = `w-full text-left p-3 rounded-lg font-medium text-sm border transition ${viewingTableId === 'current' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'hover:bg-gray-100 text-gray-600 border-transparent dark:text-gray-300 dark:hover:bg-gray-700'}`;
+            currentBtn.innerText = "▸ 目前排單";
             currentBtn.onclick = () => { viewingTableId = 'current'; toggleAdminUI(); };
             list.appendChild(currentBtn);
-            historyData.sort((a,b) => b.archivedAt - a.archivedAt).forEach(item => {
-                const btn = document.createElement('button');
-                btn.className = `w-full text-left p-3 rounded-lg text-sm transition border ${viewingTableId === item.firebaseId ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
+
+            // 歷史表 (可拖拽)
+            historyData.forEach((item, index) => {
+                const btn = document.createElement('div');
+                btn.className = `w-full text-left p-3 rounded-lg text-sm transition border cursor-pointer ${viewingTableId === item.firebaseId ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'hover:bg-gray-100 text-gray-600 border-transparent dark:text-gray-300 dark:hover:bg-gray-700'}`;
                 btn.innerText = item.title;
                 btn.onclick = () => { viewingTableId = item.firebaseId; toggleAdminUI(); };
+
+                if (isAdmin) {
+                    btn.setAttribute('draggable', 'true');
+                    btn.ondragstart = (e) => {
+                        draggedId = item.firebaseId;
+                        e.dataTransfer.effectAllowed = "move";
+                        btn.style.opacity = "0.5";
+                    };
+                    btn.ondragend = () => {
+                        btn.style.opacity = "1";
+                        draggedId = null;
+                        const allItems = list.querySelectorAll('[draggable]');
+                        allItems.forEach(i => i.classList.remove('drag-over'));
+                    };
+                    btn.ondragover = (e) => {
+                        e.preventDefault();
+                        if (draggedId !== item.firebaseId) btn.classList.add('drag-over');
+                    };
+                    btn.ondragleave = () => btn.classList.remove('drag-over');
+                    btn.ondrop = async (e) => {
+                        e.preventDefault();
+                        if (draggedId && draggedId !== item.firebaseId) {
+                            await reorderHistory(draggedId, item.firebaseId);
+                        }
+                    };
+                }
                 list.appendChild(btn);
             });
+        }
+
+        // 重新排序雲端數據
+        async function reorderHistory(sourceId, targetId) {
+            const sourceItem = historyData.find(h => h.firebaseId === sourceId);
+            const targetItem = historyData.find(h => h.firebaseId === targetId);
+            if (!sourceItem || !targetItem) return;
+
+            const batch = writeBatch(db);
+            const sourceRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', sourceId);
+            const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', targetId);
+
+            const tempOrder = sourceItem.order || 0;
+            batch.update(sourceRef, { order: targetItem.order || 0 });
+            batch.update(targetRef, { order: tempOrder });
+
+            await batch.commit();
         }
     </script>
 </body>
