@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>流草的委託排單表</title>
+    <title>▍流草-委託排單表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
@@ -286,7 +286,17 @@
                     </td>
                     <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isAdmin ? `<input type="text" value="${com.content}" onchange="updateData(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
                     <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isAdmin ? `<input type="number" value="${com.price}" onchange="updateData(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${com.price.toLocaleString()}`}</td>
-                    ${isAdmin ? `<td class="p-4 text-center"><button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600">刪除</button></td>` : ''}
+                    ${isAdmin ? `
+                        <td class="p-4 text-center">
+                            <div class="flex flex-col gap-1 items-center">
+                                <div class="flex gap-1">
+                                    <button onclick="moveRow(${index}, -1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === 0 ? 'invisible' : ''}" title="上移">↑</button>
+                                    <button onclick="moveRow(${index}, 1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === data.commissions.length - 1 ? 'invisible' : ''}" title="下移">↓</button>
+                                </div>
+                                <button onclick="deleteRow(${index})" class="text-xs text-red-400 hover:text-red-600 mt-1">刪除</button>
+                            </div>
+                        </td>
+                    ` : ''}
                 `;
                 tbody.appendChild(tr);
             });
@@ -328,6 +338,19 @@
             if(!confirm('刪除此行？')) return;
             const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
             table.commissions.splice(index, 1);
+            saveTable(viewingTableId, table);
+        };
+
+        // 新增：上移/下移功能
+        window.moveRow = function(index, direction) {
+            const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= table.commissions.length) return;
+
+            // 交換陣列元素
+            [table.commissions[index], table.commissions[newIndex]] = [table.commissions[newIndex], table.commissions[index]];
+            
+            table.lastUpdate = new Date().toLocaleString();
             saveTable(viewingTableId, table);
         };
 
@@ -405,7 +428,7 @@
             
             const currentBtn = document.createElement('button');
             currentBtn.className = `w-full text-left p-3 rounded-lg font-medium text-sm border transition ${viewingTableId === 'current' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
-            currentBtn.innerText = "● 目前排單";
+            currentBtn.innerText = "▸ 目前排單";
             currentBtn.onclick = () => { viewingTableId = 'current'; toggleAdminUI(); };
             list.appendChild(currentBtn);
 
