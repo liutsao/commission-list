@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>委託排單記錄 (雲端同步版)</title>
+    <title>流草的委託排單</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
@@ -128,75 +128,92 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, updateDoc, deleteDoc, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase 配置 (由環境提供)
-        const firebaseConfig = JSON.parse(__firebase_config);
+        /** * GitHub Pages 部署注意：
+         * 如果在 GitHub 上運行，請手動將下方的 config 替換為你的 Firebase 控制台產生的物件。
+         */
+        const firebaseConfig = (typeof __firebase_config !== 'undefined') 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "YOUR_API_KEY",
+                authDomain: "YOUR_AUTH_DOMAIN",
+                projectId: "YOUR_PROJECT_ID",
+                storageBucket: "YOUR_STORAGE_BUCKET",
+                messagingSenderId: "YOUR_SENDER_ID",
+                appId: "YOUR_APP_ID"
+            };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'commission-system-001';
+        
+        const rawAppId = typeof __app_id !== 'undefined' ? __app_id : 'commission-system-v2';
+        const appId = rawAppId.replace(/\./g, '_'); 
 
-        // 狀態管理
         let user = null;
         let isAdmin = false;
         let currentTableData = null;
         let historyData = [];
-        let viewingTableId = 'current'; // 'current' or specific ID
+        let viewingTableId = 'current';
+        let unsubscribeCurrent = null;
+        let unsubscribeHistory = null;
 
-        // 初始化 Auth
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+        const startApp = async () => {
+            try {
+                let authResult;
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    authResult = await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    authResult = await signInAnonymously(auth);
+                }
+                user = authResult.user;
+                if (user) setupRealtimeListeners();
+
+                onAuthStateChanged(auth, (u) => {
+                    const prevUser = user;
+                    user = u;
+                    if (user && !prevUser) setupRealtimeListeners();
+                });
+            } catch (err) {
+                console.error("Auth Error:", err);
+                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500'>驗證失敗，請檢查配置。</div>`;
             }
         };
 
-        initAuth();
+        startApp();
 
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (user) {
-                // 讀取當前排單
-                setupRealtimeListeners();
-            }
-        });
-
-        // 監聽雲端資料
         function setupRealtimeListeners() {
-            // 監聽目前排單 (Public)
-            const currentDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'current_table');
-            onSnapshot(currentDocRef, (docSnap) => {
+            if (!user) return;
+            if (unsubscribeCurrent) unsubscribeCurrent();
+            if (unsubscribeHistory) unsubscribeHistory();
+
+            // 正確路徑：artifacts -> appId -> public -> data -> tables -> current (共 6 段)
+            const currentDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current');
+            unsubscribeCurrent = onSnapshot(currentDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     currentTableData = docSnap.data();
                 } else {
-                    // 初始化預設資料
-                    currentTableData = {
-                        title: "新委託排單表",
-                        lastUpdate: new Date().toLocaleDateString(),
-                        commissions: []
-                    };
+                    currentTableData = { title: "新委託排單表", lastUpdate: new Date().toLocaleString(), commissions: [] };
                     saveCurrentToCloud();
                 }
                 if (viewingTableId === 'current') renderTable(currentTableData);
                 document.getElementById('loading').classList.add('hidden');
-            }, (error) => console.error("Snapshot error:", error));
+            }, (error) => {
+                if (error.code === 'permission-denied') setTimeout(setupRealtimeListeners, 1500);
+            });
 
-            // 監聽歷史排單 (Public)
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            onSnapshot(historyColRef, (querySnapshot) => {
+            unsubscribeHistory = onSnapshot(historyColRef, (querySnapshot) => {
                 historyData = [];
-                querySnapshot.forEach((doc) => {
-                    historyData.push({ ...doc.data(), firebaseId: doc.id });
-                });
+                querySnapshot.forEach((doc) => historyData.push({ ...doc.data(), firebaseId: doc.id }));
                 updateSidebar();
             });
         }
 
-        // 渲染邏輯
         window.renderTable = function(data) {
+            if (!data) return;
             const tbody = document.getElementById('commissionTableBody');
             const totalDisplay = document.getElementById('totalAmount');
             const titleDisplay = document.getElementById('tableTitle');
@@ -210,46 +227,22 @@
             let total = 0;
             const isEditing = isAdmin && viewingTableId === 'current';
 
-            if (isAdmin) {
-                adminHeaders.forEach(h => h.classList.remove('hidden'));
-            } else {
-                adminHeaders.forEach(h => h.classList.add('hidden'));
-            }
+            adminHeaders.forEach(h => isAdmin ? h.classList.remove('hidden') : h.classList.add('hidden'));
 
             data.commissions.forEach((com, index) => {
                 total += parseInt(com.price || 0);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0";
-                
                 tr.innerHTML = `
-                    <td class="p-4">
-                        ${isEditing ? `<input type="text" value="${com.id}" onchange="updateRow(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}
-                    </td>
-                    <td class="p-4 text-gray-600">
-                        ${isEditing ? `<input type="text" value="${com.source}" onchange="updateRow(${index}, 'source', this.value)" class="border p-1 rounded w-full">` : com.source}
-                    </td>
-                    <td class="p-4">
-                        ${isEditing ? `
-                            <select onchange="updateRow(${index}, 'status', this.value)" class="border p-1 rounded w-full">
-                                ${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}
-                            </select>
-                        ` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}
-                    </td>
-                    <td class="p-4 ${isAdmin ? '' : 'blurred'}">
-                        ${isEditing ? `<input type="text" value="${com.content}" onchange="updateRow(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}
-                    </td>
-                    <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">
-                        ${isEditing ? `<input type="number" value="${com.price}" onchange="updateRow(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${(com.price || 0).toLocaleString()}`}
-                    </td>
-                    ${isAdmin ? `
-                        <td class="p-4 text-center">
-                            ${viewingTableId === 'current' ? `<button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600">刪除</button>` : '-'}
-                        </td>
-                    ` : ''}
+                    <td class="p-4">${isEditing ? `<input type="text" value="${com.id}" onchange="updateRow(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
+                    <td class="p-4 text-gray-600">${isEditing ? `<input type="text" value="${com.source}" onchange="updateRow(${index}, 'source', this.value)" class="border p-1 rounded w-full">` : com.source}</td>
+                    <td class="p-4">${isEditing ? `<select onchange="updateRow(${index}, 'status', this.value)" class="border p-1 rounded w-full">${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}</select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}</td>
+                    <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="text" value="${com.content}" onchange="updateRow(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
+                    <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="number" value="${com.price}" onchange="updateRow(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${(com.price || 0).toLocaleString()}`}</td>
+                    ${isAdmin ? `<td class="p-4 text-center">${viewingTableId === 'current' ? `<button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600">刪除</button>` : '-'}</td>` : ''}
                 `;
                 tbody.appendChild(tr);
             });
-
             totalDisplay.innerText = total.toLocaleString();
         };
 
@@ -258,27 +251,19 @@
             return classes[status] || '';
         }
 
-        // 管理員邏輯
         window.promptLogin = function() {
             document.getElementById('modalInput').value = '';
             document.getElementById('customModal').classList.remove('hidden');
-            document.getElementById('modalConfirm').onclick = async () => {
-                if(document.getElementById('modalInput').value === "kk7680771") { // 密碼
+            document.getElementById('modalConfirm').onclick = () => {
+                if(document.getElementById('modalInput').value === "kk7680771") {
                     isAdmin = true;
                     toggleAdminUI();
                     closeModal();
-                } else {
-                    alert('密碼錯誤');
-                }
+                } else { alert('密碼錯誤'); }
             };
         };
 
-        window.logout = function() {
-            isAdmin = false;
-            viewingTableId = 'current';
-            toggleAdminUI();
-        };
-
+        window.logout = function() { isAdmin = false; viewingTableId = 'current'; toggleAdminUI(); };
         window.closeModal = () => document.getElementById('customModal').classList.add('hidden');
 
         function toggleAdminUI() {
@@ -290,31 +275,23 @@
             const tableTitle = document.getElementById('tableTitle');
 
             if (isAdmin) {
-                adminControls.classList.remove('hidden');
-                loginBtn.classList.add('hidden');
-                sidebar.classList.remove('hidden');
-                sidebar.classList.add('flex');
+                adminControls.classList.remove('hidden'); loginBtn.classList.add('hidden');
+                sidebar.classList.remove('hidden'); sidebar.classList.add('flex');
                 if (viewingTableId === 'current') {
-                    editActions.classList.remove('hidden');
-                    editTitleSection.classList.remove('hidden');
-                    tableTitle.classList.add('hidden');
-                    document.getElementById('titleInput').value = currentTableData.title;
+                    editActions.classList.remove('hidden'); editTitleSection.classList.remove('hidden');
+                    tableTitle.classList.add('hidden'); document.getElementById('titleInput').value = currentTableData.title;
                 }
             } else {
-                adminControls.classList.add('hidden');
-                loginBtn.classList.remove('hidden');
-                sidebar.classList.add('hidden');
-                editActions.classList.add('hidden');
-                editTitleSection.classList.add('hidden');
-                tableTitle.classList.remove('hidden');
+                adminControls.classList.add('hidden'); loginBtn.classList.remove('hidden');
+                sidebar.classList.add('hidden'); editActions.classList.add('hidden');
+                editTitleSection.classList.add('hidden'); tableTitle.classList.remove('hidden');
             }
             renderTable(viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId));
         }
 
-        // 資料寫入雲端
         async function saveCurrentToCloud() {
-            if (!user) return;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'current_table');
+            if (!user || !currentTableData) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current');
             await setDoc(docRef, currentTableData);
         }
 
@@ -337,30 +314,17 @@
             saveCurrentToCloud();
         };
 
-        // 標題連動
         document.getElementById('titleInput').oninput = (e) => {
             if (!isAdmin || viewingTableId !== 'current') return;
             currentTableData.title = e.target.value;
             saveCurrentToCloud();
         };
 
-        // 歷史操作
         window.archiveCurrentTable = async function() {
             if (!isAdmin || !confirm('確定存入歷史並清空當前排單？')) return;
-            
-            // 寫入歷史集合
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            await addDoc(historyColRef, {
-                ...currentTableData,
-                archivedAt: Timestamp.now()
-            });
-
-            // 重置當前
-            currentTableData = {
-                title: "新委託排單表 (" + new Date().toLocaleDateString() + ")",
-                lastUpdate: new Date().toLocaleString(),
-                commissions: []
-            };
+            await addDoc(historyColRef, { ...currentTableData, archivedAt: Timestamp.now() });
+            currentTableData = { title: "新委託排單表 (" + new Date().toLocaleDateString() + ")", lastUpdate: new Date().toLocaleString(), commissions: [] };
             await saveCurrentToCloud();
             alert('已成功存檔');
         };
@@ -368,13 +332,11 @@
         function updateSidebar() {
             const list = document.getElementById('historyList');
             list.innerHTML = '';
-            
             const currentBtn = document.createElement('button');
             currentBtn.className = `w-full text-left p-3 rounded-lg font-medium text-sm border ${viewingTableId === 'current' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
             currentBtn.innerText = "● 目前排單";
             currentBtn.onclick = () => { viewingTableId = 'current'; toggleAdminUI(); };
             list.appendChild(currentBtn);
-
             historyData.sort((a,b) => b.archivedAt - a.archivedAt).forEach(item => {
                 const btn = document.createElement('button');
                 btn.className = `w-full text-left p-3 rounded-lg text-sm transition border ${viewingTableId === item.firebaseId ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
