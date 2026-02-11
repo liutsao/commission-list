@@ -131,21 +131,21 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /** * GitHub Pages 部署注意：
-         * 如果在 GitHub 上運行，請手動將下方的 config 替換為你的 Firebase 控制台產生的物件。
+        /** * [重要] GitHub 部署必做步驟：
+         * 請將下方的內容替換為你在 Firebase 控制台取得的 SDK 配置資訊。
          */
-        const firebaseConfig = (typeof __firebase_config !== 'undefined') 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "YOUR_API_KEY",
-                authDomain: "YOUR_AUTH_DOMAIN",
-                projectId: "YOUR_PROJECT_ID",
-                storageBucket: "YOUR_STORAGE_BUCKET",
-                messagingSenderId: "YOUR_SENDER_ID",
-                appId: "YOUR_APP_ID"
-            };
+        const firebaseConfig = {
+            apiKey: "AIzaSyALtj1ceOZbR9xr7MpfU8lVf7HBKIbtuUU",
+            authDomain: "commission-list-ba286.firebaseapp.com",
+            projectId: "commission-list-ba286",
+            storageBucket: "commission-list-ba286.firebasestorage.app",
+            messagingSenderId: "242940980210",
+            appId: "1:242940980210:web:a6e362652faac8775dd96b"
+        };
 
-        const app = initializeApp(firebaseConfig);
+        // Canvas 環境兼容處理 (保持不變)
+        const finalConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : firebaseConfig;
+        const app = initializeApp(finalConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
@@ -178,7 +178,7 @@
                 });
             } catch (err) {
                 console.error("Auth Error:", err);
-                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500'>驗證失敗，請檢查配置。</div>`;
+                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500 font-bold'>驗證失敗，請檢查 Firebase 配置。<br><span class='text-sm'>詳細資訊請查看 Console 報錯。</span></div>`;
             }
         };
 
@@ -189,7 +189,6 @@
             if (unsubscribeCurrent) unsubscribeCurrent();
             if (unsubscribeHistory) unsubscribeHistory();
 
-            // 正確路徑：artifacts -> appId -> public -> data -> tables -> current (共 6 段)
             const currentDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current');
             unsubscribeCurrent = onSnapshot(currentDocRef, (docSnap) => {
                 if (docSnap.exists()) {
@@ -201,7 +200,7 @@
                 if (viewingTableId === 'current') renderTable(currentTableData);
                 document.getElementById('loading').classList.add('hidden');
             }, (error) => {
-                if (error.code === 'permission-denied') setTimeout(setupRealtimeListeners, 1500);
+                console.error("Snapshot error (current):", error);
             });
 
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
