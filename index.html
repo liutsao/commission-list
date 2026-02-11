@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>流草的委託排單</title>
+    <title>流草的委託排單表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
@@ -42,6 +42,18 @@
             align-items: center;
             justify-content: center;
             z-index: 100;
+        }
+
+        /* 調整按鈕樣式 */
+        .btn-move {
+            padding: 2px 6px;
+            font-size: 12px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .btn-move:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -143,7 +155,6 @@
             appId: "1:242940980210:web:a6e362652faac8775dd96b"
         };
 
-        // Canvas 環境兼容處理 (保持不變)
         const finalConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : firebaseConfig;
         const app = initializeApp(finalConfig);
         const auth = getAuth(app);
@@ -178,7 +189,7 @@
                 });
             } catch (err) {
                 console.error("Auth Error:", err);
-                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500 font-bold'>驗證失敗，請檢查 Firebase 配置。<br><span class='text-sm'>詳細資訊請查看 Console 報錯。</span></div>`;
+                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500 font-bold'>驗證失敗，請檢查 Firebase 配置。</div>`;
             }
         };
 
@@ -232,17 +243,47 @@
                 total += parseInt(com.price || 0);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0";
+                
+                // 動態生成操作按鈕
+                let actionButtons = '-';
+                if (isAdmin && viewingTableId === 'current') {
+                    actionButtons = `
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="moveRow(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700">▲</button>
+                            <button onclick="moveRow(${index}, 1)" ${index === data.commissions.length - 1 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700">▼</button>
+                            <button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600 ml-2">刪除</button>
+                        </div>
+                    `;
+                }
+
                 tr.innerHTML = `
                     <td class="p-4">${isEditing ? `<input type="text" value="${com.id}" onchange="updateRow(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
                     <td class="p-4 text-gray-600">${isEditing ? `<input type="text" value="${com.source}" onchange="updateRow(${index}, 'source', this.value)" class="border p-1 rounded w-full">` : com.source}</td>
                     <td class="p-4">${isEditing ? `<select onchange="updateRow(${index}, 'status', this.value)" class="border p-1 rounded w-full">${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}</select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}</td>
                     <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="text" value="${com.content}" onchange="updateRow(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
                     <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="number" value="${com.price}" onchange="updateRow(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${(com.price || 0).toLocaleString()}`}</td>
-                    ${isAdmin ? `<td class="p-4 text-center">${viewingTableId === 'current' ? `<button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600">刪除</button>` : '-'}</td>` : ''}
+                    ${isAdmin ? `<td class="p-4 text-center">${actionButtons}</td>` : ''}
                 `;
                 tbody.appendChild(tr);
             });
             totalDisplay.innerText = total.toLocaleString();
+        };
+
+        // 新增：移動列的邏輯
+        window.moveRow = function(index, direction) {
+            if (!isAdmin || viewingTableId !== 'current') return;
+            const newIndex = index + direction;
+            
+            // 邊界安全檢查
+            if (newIndex < 0 || newIndex >= currentTableData.commissions.length) return;
+
+            // 交換陣列元素
+            const temp = currentTableData.commissions[index];
+            currentTableData.commissions[index] = currentTableData.commissions[newIndex];
+            currentTableData.commissions[newIndex] = temp;
+
+            currentTableData.lastUpdate = new Date().toLocaleString();
+            saveCurrentToCloud();
         };
 
         function getStatusClass(status) {
