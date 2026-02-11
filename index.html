@@ -3,33 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>▍流草的委託排單表</title>
+    <title>流草的委託排單表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            transition: background-color 0.3s, color 0.3s;
+            background-color: #f9fafb;
+            color: #1f2937;
         }
-
-        /* 深色模式樣式 */
-        body.dark-mode {
-            background-color: #111827;
-            color: #f3f4f6;
-        }
-        .dark-mode aside { background-color: #1f2937; border-color: #374151; }
-        .dark-mode main { background-color: #111827; }
-        .dark-mode header h1 { color: #ffffff; }
-        .dark-mode .bg-white { background-color: #1f2937; border-color: #374151; }
-        .dark-mode .text-gray-900 { color: #f3f4f6; }
-        .dark-mode .text-gray-600 { color: #d1d5db; }
-        .dark-mode .text-gray-500 { color: #9ca3af; }
-        .dark-mode .bg-gray-50 { background-color: #374151; color: #e5e7eb; }
-        .dark-mode border-b { border-color: #374151; }
-        .dark-mode tr:hover { background-color: #2d3748; }
-        .dark-mode input, .dark-mode select { background-color: #374151; border-color: #4b5563; color: white; }
-        .dark-mode .border-gray-100 { border-color: #374151; }
 
         .blurred {
             filter: blur(5px);
@@ -61,15 +44,16 @@
             z-index: 100;
         }
 
-        .btn-move {
+        .source-link {
+            background-color: #f3f4f6;
             padding: 2px 6px;
-            font-size: 12px;
             border-radius: 4px;
-            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+            transition: background-color 0.2s;
         }
-        .btn-move:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
+        .source-link:hover {
+            background-color: #e5e7eb;
         }
 
         .drag-over {
@@ -77,18 +61,18 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex bg-gray-50 text-gray-800">
+<body class="min-h-screen flex">
 
     <div id="loading" class="loading-overlay">
         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
     </div>
 
     <!-- 左側選單 -->
-    <aside id="sidebar" class="w-64 bg-white border-r h-screen sticky top-0 hidden flex-col transition-colors duration-300">
-        <div class="p-6 border-b border-gray-100">
-            <h2 class="font-bold text-lg text-gray-800 dark:text-white">歷史排單表</h2>
+    <aside id="sidebar" class="w-64 bg-white border-r h-screen sticky top-0 hidden flex-col">
+        <div class="p-6 border-b">
+            <h2 class="font-bold text-lg text-gray-800">歷史排單表</h2>
         </div>
-        <div class="p-4 border-b border-gray-100">
+        <div class="p-4 border-b">
             <button onclick="createBlankHistory()" class="w-full bg-gray-800 hover:bg-black text-white py-2 rounded-lg text-sm transition">
                 + 新增歷史表
             </button>
@@ -96,7 +80,8 @@
         <div id="historyList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
     </aside>
 
-    <main class="flex-1 p-8 transition-colors duration-300">
+    <!-- 主要內容區 -->
+    <main class="flex-1 p-8 lg:p-12 max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-10">
             <div>
                 <div class="flex items-center gap-4">
@@ -105,15 +90,10 @@
                         刪除此歷史表
                     </button>
                 </div>
-                <p class="text-gray-500 mt-2">最後更新：<span id="updateTime">---</span></p>
+                <p class="text-gray-500 mt-2">最後更新時間：<span id="updateTime">---</span></p>
             </div>
             
             <div class="flex items-center gap-4">
-                <!-- 深色模式切換按鈕 -->
-                <button onclick="toggleDarkMode()" class="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-100 transition shadow-sm flex items-center justify-center w-10 h-10">
-                    <span id="modeIcon">🌙</span>
-                </button>
-
                 <div id="adminControls" class="hidden flex items-center gap-3">
                     <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
                         <span class="text-sm text-blue-600 font-medium">總金額：$</span>
@@ -132,8 +112,8 @@
             </div>
         </header>
 
-        <div class="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden transition-colors duration-300">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div class="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
+            <div class="p-6 border-b flex justify-between items-center">
                 <div id="editTitleSection" class="hidden flex-1 mr-4">
                     <input type="text" id="titleInput" class="w-full border p-2 rounded text-xl font-bold" placeholder="輸入排單表標題...">
                 </div>
@@ -144,26 +124,28 @@
                 </div>
             </div>
 
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50 text-gray-600 text-sm uppercase">
-                        <th class="p-4 font-semibold border-b">委託人 ID</th>
-                        <th class="p-4 font-semibold border-b">來源</th>
-                        <th class="p-4 font-semibold border-b">進行狀態</th>
-                        <th class="p-4 font-semibold border-b">委託內容</th>
-                        <th class="p-4 font-semibold border-b text-right">委託金額</th>
-                        <th class="admin-only-header hidden p-4 font-semibold border-b text-center">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="commissionTableBody"></tbody>
-            </table>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase">
+                            <th class="p-4 font-semibold border-b">委託人 ID</th>
+                            <th class="p-4 font-semibold border-b">來源</th>
+                            <th class="p-4 font-semibold border-b">進行狀態</th>
+                            <th class="p-4 font-semibold border-b">委託內容</th>
+                            <th class="p-4 font-semibold border-b text-right">委託金額</th>
+                            <th class="admin-only hidden p-4 font-semibold border-b text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="commissionTableBody"></tbody>
+                </table>
+            </div>
         </div>
     </main>
 
     <div id="customModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-xl w-80 dark:bg-gray-800">
-            <h3 id="modalTitle" class="text-lg font-bold mb-4 dark:text-white">管理員登入</h3>
-            <input type="password" id="modalInput" class="w-full border p-2 rounded mb-4 dark:bg-gray-700 dark:text-white" placeholder="請輸入密碼...">
+        <div class="bg-white p-6 rounded-xl shadow-xl w-80">
+            <h3 id="modalTitle" class="text-lg font-bold mb-4">管理員登入</h3>
+            <input type="password" id="modalInput" class="w-full border p-2 rounded mb-4" placeholder="請輸入密碼...">
             <div class="flex justify-end gap-2">
                 <button onclick="closeModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700">取消</button>
                 <button id="modalConfirm" class="px-4 py-2 bg-blue-600 text-white rounded">確認</button>
@@ -177,9 +159,8 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /** * [重要] GitHub 部署時填寫你的 Firebase Config
-         */
-        const firebaseConfig = {
+        // Firebase 配置
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyALtj1ceOZbR9xr7MpfU8lVf7HBKIbtuUU",
             authDomain: "commission-list-ba286.firebaseapp.com",
             projectId: "commission-list-ba286",
@@ -188,95 +169,76 @@
             appId: "1:242940980210:web:a6e362652faac8775dd96b"
         };
 
-        const finalConfig = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : firebaseConfig;
-        const app = initializeApp(finalConfig);
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        const rawAppId = typeof __app_id !== 'undefined' ? __app_id : 'commission-system-v2';
-        const appId = rawAppId.replace(/\./g, '_'); 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-commission-app';
 
+        // 全域變數
         let user = null;
         let isAdmin = false;
-        let isDarkMode = false;
         let currentTableData = null;
         let historyData = [];
         let viewingTableId = 'current';
         let draggedId = null;
-        let unsubscribeCurrent = null;
-        let unsubscribeHistory = null;
 
-        const startApp = async () => {
-            try {
-                let authResult;
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    authResult = await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    authResult = await signInAnonymously(auth);
-                }
-                user = authResult.user;
-                if (user) setupRealtimeListeners();
-
-                onAuthStateChanged(auth, (u) => {
-                    const prevUser = user;
-                    user = u;
-                    if (user && !prevUser) setupRealtimeListeners();
-                });
-            } catch (err) {
-                console.error("Auth Error:", err);
-                document.getElementById('loading').innerHTML = `<div class='p-4 text-red-500 font-bold text-center'>驗證失敗，請檢查 Firebase 配置。</div>`;
+        // 初始化驗證
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
             }
         };
 
-        startApp();
+        initAuth();
 
-        function setupRealtimeListeners() {
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (user) setupListeners();
+        });
+
+        // 監聽數據
+        function setupListeners() {
             if (!user) return;
-            if (unsubscribeCurrent) unsubscribeCurrent();
-            if (unsubscribeHistory) unsubscribeHistory();
 
+            // 監聽目前排單
             const currentDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current');
-            unsubscribeCurrent = onSnapshot(currentDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    currentTableData = docSnap.data();
+            onSnapshot(currentDocRef, (snap) => {
+                if (snap.exists()) {
+                    currentTableData = snap.data();
+                    // 資料格式相容處理
+                    currentTableData.commissions.forEach(c => {
+                        if (typeof c.source === 'string') c.source = { text: c.source, link: '' };
+                    });
                 } else {
-                    currentTableData = { title: "新委託排單表", lastUpdate: new Date().toLocaleString(), commissions: [] };
-                    saveCurrentToCloud();
+                    currentTableData = { title: "2024年 委託排單表", lastUpdate: new Date().toLocaleString(), commissions: [] };
+                    saveTable('current', currentTableData);
                 }
                 if (viewingTableId === 'current') renderTable(currentTableData);
                 document.getElementById('loading').classList.add('hidden');
             });
 
+            // 監聽歷史紀錄
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            unsubscribeHistory = onSnapshot(historyColRef, (querySnapshot) => {
-                historyData = [];
-                querySnapshot.forEach((doc) => historyData.push({ ...doc.data(), firebaseId: doc.id }));
-                // 拖拽排序依據：order 欄位 > 時間
+            onSnapshot(historyColRef, (snap) => {
+                historyData = snap.docs.map(d => ({ ...d.data(), firebaseId: d.id }));
                 historyData.sort((a, b) => (a.order || 0) - (b.order || 0));
                 updateSidebar();
                 if (viewingTableId !== 'current') {
                     const table = historyData.find(h => h.firebaseId === viewingTableId);
                     if (table) renderTable(table);
-                    else { viewingTableId = 'current'; renderTable(currentTableData); }
                 }
             });
         }
 
-        // 深色模式切換
-        window.toggleDarkMode = function() {
-            isDarkMode = !isDarkMode;
-            document.body.classList.toggle('dark-mode', isDarkMode);
-            document.getElementById('modeIcon').innerText = isDarkMode ? '☀️' : '🌙';
-        };
-
+        // 渲染表格
         window.renderTable = function(data) {
-            if (!data) return;
             const tbody = document.getElementById('commissionTableBody');
             const totalDisplay = document.getElementById('totalAmount');
             const titleDisplay = document.getElementById('tableTitle');
             const updateDisplay = document.getElementById('updateTime');
-            const adminHeaders = document.querySelectorAll('.admin-only-header');
-            const deleteHistoryBtn = document.getElementById('deleteHistoryBtn');
+            const deleteBtn = document.getElementById('deleteHistoryBtn');
             const archiveBtn = document.getElementById('archiveBtn');
 
             tbody.innerHTML = '';
@@ -284,144 +246,112 @@
             updateDisplay.innerText = data.lastUpdate;
 
             let total = 0;
-            const isEditing = isAdmin;
 
-            adminHeaders.forEach(h => isAdmin ? h.classList.remove('hidden') : h.classList.add('hidden'));
-            
             if (isAdmin && viewingTableId !== 'current') {
-                deleteHistoryBtn.classList.remove('hidden');
+                deleteBtn.classList.remove('hidden');
                 archiveBtn.classList.add('hidden');
             } else {
-                deleteHistoryBtn.classList.add('hidden');
+                deleteBtn.classList.add('hidden');
                 if (isAdmin) archiveBtn.classList.remove('hidden');
             }
 
             data.commissions.forEach((com, index) => {
                 total += parseInt(com.price || 0);
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0 dark:border-gray-700 dark:hover:bg-gray-800";
+                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 last:border-0";
                 
-                let actionButtons = '-';
+                let sourceHTML = '';
                 if (isAdmin) {
-                    actionButtons = `
-                        <div class="flex items-center justify-center gap-2">
-                            <button onclick="moveRow(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white">▲</button>
-                            <button onclick="moveRow(${index}, 1)" ${index === data.commissions.length - 1 ? 'disabled' : ''} class="btn-move bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white">▼</button>
-                            <button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600 ml-2">刪除</button>
+                    sourceHTML = `
+                        <div class="space-y-1">
+                            <input type="text" value="${com.source.text || ''}" onchange="updateSource(${index}, 'text', this.value)" class="border p-1 rounded w-full text-xs" placeholder="顯示文字">
+                            <input type="text" value="${com.source.link || ''}" onchange="updateSource(${index}, 'link', this.value)" class="border p-1 rounded w-full text-xs" placeholder="連結網址">
                         </div>
                     `;
+                } else {
+                    if (com.source.link) {
+                        sourceHTML = `<a href="${com.source.link}" target="_blank" class="source-link text-sm font-medium">${com.source.text || '連結'}</a>`;
+                    } else {
+                        sourceHTML = `<span class="text-sm text-gray-600">${com.source.text || '-'}</span>`;
+                    }
                 }
 
                 tr.innerHTML = `
-                    <td class="p-4">${isEditing ? `<input type="text" value="${com.id}" onchange="updateRow(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
-                    <td class="p-4">${isEditing ? `<input type="text" value="${com.source}" onchange="updateRow(${index}, 'source', this.value)" class="border p-1 rounded w-full">` : com.source}</td>
-                    <td class="p-4">${isEditing ? `<select onchange="updateRow(${index}, 'status', this.value)" class="border p-1 rounded w-full">${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}</select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}</td>
-                    <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="text" value="${com.content}" onchange="updateRow(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
-                    <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isEditing ? `<input type="number" value="${com.price}" onchange="updateRow(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${(com.price || 0).toLocaleString()}`}</td>
-                    ${isAdmin ? `<td class="p-4 text-center">${actionButtons}</td>` : ''}
+                    <td class="p-4">${isAdmin ? `<input type="text" value="${com.id}" onchange="updateData(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
+                    <td class="p-4">${sourceHTML}</td>
+                    <td class="p-4">
+                        ${isAdmin ? `<select onchange="updateData(${index}, 'status', this.value)" class="border p-1 rounded w-full">
+                            ${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}
+                    </td>
+                    <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isAdmin ? `<input type="text" value="${com.content}" onchange="updateData(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
+                    <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isAdmin ? `<input type="number" value="${com.price}" onchange="updateData(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${com.price.toLocaleString()}`}</td>
+                    ${isAdmin ? `<td class="p-4 text-center"><button onclick="deleteRow(${index})" class="text-red-400 hover:text-red-600">刪除</button></td>` : ''}
                 `;
                 tbody.appendChild(tr);
             });
             totalDisplay.innerText = total.toLocaleString();
         };
 
-        window.moveRow = function(index, direction) {
-            if (!isAdmin) return;
-            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-            if (!targetData) return;
-            const newIndex = index + direction;
-            if (newIndex < 0 || newIndex >= targetData.commissions.length) return;
-            const temp = targetData.commissions[index];
-            targetData.commissions[index] = targetData.commissions[newIndex];
-            targetData.commissions[newIndex] = temp;
-            targetData.lastUpdate = new Date().toLocaleString() + (viewingTableId === 'current' ? "" : " (已編輯)");
-            saveSpecificTableToCloud(viewingTableId, targetData);
-        };
-
-        async function saveSpecificTableToCloud(id, data) {
-            if (!user || !data) return;
-            const docRef = (id === 'current') 
+        // 資料同步函數
+        async function saveTable(id, data) {
+            if (!user) return;
+            const docRef = id === 'current' 
                 ? doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current')
                 : doc(db, 'artifacts', appId, 'public', 'data', 'history', id);
-            const uploadData = { ...data };
-            if (uploadData.firebaseId) delete uploadData.firebaseId;
-            await setDoc(docRef, uploadData);
+            const dataToSave = { ...data };
+            delete dataToSave.firebaseId;
+            await setDoc(docRef, dataToSave);
         }
 
-        window.updateRow = function(index, field, value) {
-            if (!isAdmin) return;
-            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-            if (!targetData) return;
-            targetData.commissions[index][field] = field === 'price' ? parseInt(value) || 0 : value;
-            targetData.lastUpdate = new Date().toLocaleString() + (viewingTableId === 'current' ? "" : " (已編輯)");
-            saveSpecificTableToCloud(viewingTableId, targetData);
+        window.updateData = function(index, field, value) {
+            const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            table.commissions[index][field] = field === 'price' ? parseInt(value) || 0 : value;
+            table.lastUpdate = new Date().toLocaleString();
+            saveTable(viewingTableId, table);
+        };
+
+        window.updateSource = function(index, subfield, value) {
+            const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            table.commissions[index].source[subfield] = value;
+            table.lastUpdate = new Date().toLocaleString();
+            saveTable(viewingTableId, table);
         };
 
         window.addCommission = function() {
-            if (!isAdmin) return;
-            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-            if (!targetData) return;
-            targetData.commissions.push({ id: '新委託人', source: '-', status: '待付款', content: '無', price: 0 });
-            saveSpecificTableToCloud(viewingTableId, targetData);
+            const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            table.commissions.push({ id: '新委託', source: { text: '-', link: '' }, status: '待付款', content: '無', price: 0 });
+            saveTable(viewingTableId, table);
         };
 
         window.deleteRow = function(index) {
-            if (!isAdmin || !confirm('確定刪除？')) return;
-            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-            if (!targetData) return;
-            targetData.commissions.splice(index, 1);
-            saveSpecificTableToCloud(viewingTableId, targetData);
-        };
-
-        window.deleteHistoryTable = async function() {
-            if (!isAdmin || viewingTableId === 'current' || !confirm('警告：確定要永久刪除這張歷史排單表嗎？')) return;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', viewingTableId);
-            await deleteDoc(docRef);
-            viewingTableId = 'current';
-            toggleAdminUI();
-            alert('已刪除歷史紀錄');
-        };
-
-        window.createBlankHistory = async function() {
-            if (!isAdmin) return;
-            const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            const nextOrder = historyData.length > 0 ? Math.max(...historyData.map(h => h.order || 0)) + 1 : 0;
-            const newDoc = await addDoc(historyColRef, {
-                title: "手動新增排單表",
-                lastUpdate: new Date().toLocaleString(),
-                archivedAt: Timestamp.now(),
-                order: nextOrder,
-                commissions: []
-            });
-            viewingTableId = newDoc.id;
-            toggleAdminUI();
-        };
-
-        document.getElementById('titleInput').oninput = (e) => {
-            if (!isAdmin) return;
-            const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-            if (!targetData) return;
-            targetData.title = e.target.value;
-            saveSpecificTableToCloud(viewingTableId, targetData);
+            if(!confirm('刪除此行？')) return;
+            const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            table.commissions.splice(index, 1);
+            saveTable(viewingTableId, table);
         };
 
         window.archiveCurrentTable = async function() {
-            if (!isAdmin || !confirm('確定存入歷史並清空當前排單？')) return;
-            const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
-            const nextOrder = historyData.length > 0 ? Math.max(...historyData.map(h => h.order || 0)) + 1 : 0;
-            await addDoc(historyColRef, { ...currentTableData, archivedAt: Timestamp.now(), order: nextOrder });
-            currentTableData = { title: "新委託排單表 (" + new Date().toLocaleDateString() + ")", lastUpdate: new Date().toLocaleString(), commissions: [] };
-            await saveCurrentToCloud();
-            alert('已成功存檔');
+            if(!confirm('存入歷史並重置目前排單？')) return;
+            const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+            await addDoc(historyCol, { ...currentTableData, order: historyData.length, archivedAt: Timestamp.now() });
+            currentTableData = { title: "新排單表", lastUpdate: new Date().toLocaleString(), commissions: [] };
+            saveTable('current', currentTableData);
         };
 
-        async function saveCurrentToCloud() { await saveSpecificTableToCloud('current', currentTableData); }
+        window.deleteHistoryTable = async function() {
+            if(!confirm('永久刪除此歷史表？')) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'history', viewingTableId));
+            viewingTableId = 'current';
+            toggleAdminUI();
+        };
 
-        function getStatusClass(status) {
-            const classes = { '待付款': 'status-pending', '繪製中': 'status-drawing', '靜態確認': 'status-checking', '已交稿': 'status-delivered', '已完成': 'status-completed', '取消排單': 'status-cancelled' };
-            return classes[status] || '';
-        }
+        window.createBlankHistory = async function() {
+            const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+            await addDoc(historyCol, { title: "手動新增歷史表", lastUpdate: new Date().toLocaleString(), order: historyData.length, commissions: [] });
+        };
 
+        // UI 邏輯
         window.promptLogin = function() {
             document.getElementById('modalInput').value = '';
             document.getElementById('customModal').classList.remove('hidden');
@@ -444,87 +374,74 @@
             const editActions = document.getElementById('editActions');
             const editTitleSection = document.getElementById('editTitleSection');
             const tableTitle = document.getElementById('tableTitle');
-            const titleInput = document.getElementById('titleInput');
+            const adminCols = document.querySelectorAll('.admin-only');
 
             if (isAdmin) {
                 adminControls.classList.remove('hidden'); loginBtn.classList.add('hidden');
                 sidebar.classList.remove('hidden'); sidebar.classList.add('flex');
                 editActions.classList.remove('hidden'); editTitleSection.classList.remove('hidden');
                 tableTitle.classList.add('hidden');
-                const targetData = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-                if (targetData) titleInput.value = targetData.title;
+                adminCols.forEach(el => el.classList.remove('hidden'));
+                const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+                document.getElementById('titleInput').value = table.title;
             } else {
                 adminControls.classList.add('hidden'); loginBtn.classList.remove('hidden');
                 sidebar.classList.add('hidden'); editActions.classList.add('hidden');
                 editTitleSection.classList.add('hidden'); tableTitle.classList.remove('hidden');
+                adminCols.forEach(el => el.classList.add('hidden'));
             }
             renderTable(viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId));
-            updateSidebar(); // 刷新拖拽狀態
         }
 
-        // 側邊欄拖拽排序邏輯
+        document.getElementById('titleInput').oninput = (e) => {
+            const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
+            table.title = e.target.value;
+            saveTable(viewingTableId, table);
+        };
+
         function updateSidebar() {
             const list = document.getElementById('historyList');
             list.innerHTML = '';
             
-            // 目前排單 (不可拖拽)
             const currentBtn = document.createElement('button');
-            currentBtn.className = `w-full text-left p-3 rounded-lg font-medium text-sm border transition ${viewingTableId === 'current' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'hover:bg-gray-100 text-gray-600 border-transparent dark:text-gray-300 dark:hover:bg-gray-700'}`;
-            currentBtn.innerText = "▸ 目前排單";
+            currentBtn.className = `w-full text-left p-3 rounded-lg font-medium text-sm border transition ${viewingTableId === 'current' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
+            currentBtn.innerText = "● 目前排單";
             currentBtn.onclick = () => { viewingTableId = 'current'; toggleAdminUI(); };
             list.appendChild(currentBtn);
 
-            // 歷史表 (可拖拽)
-            historyData.forEach((item, index) => {
+            historyData.forEach((item) => {
                 const btn = document.createElement('div');
-                btn.className = `w-full text-left p-3 rounded-lg text-sm transition border cursor-pointer ${viewingTableId === item.firebaseId ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'hover:bg-gray-100 text-gray-600 border-transparent dark:text-gray-300 dark:hover:bg-gray-700'}`;
+                btn.className = `w-full text-left p-3 rounded-lg text-sm transition border cursor-pointer ${viewingTableId === item.firebaseId ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'hover:bg-gray-100 text-gray-600 border-transparent'}`;
                 btn.innerText = item.title;
                 btn.onclick = () => { viewingTableId = item.firebaseId; toggleAdminUI(); };
 
                 if (isAdmin) {
-                    btn.setAttribute('draggable', 'true');
-                    btn.ondragstart = (e) => {
-                        draggedId = item.firebaseId;
-                        e.dataTransfer.effectAllowed = "move";
-                        btn.style.opacity = "0.5";
-                    };
-                    btn.ondragend = () => {
-                        btn.style.opacity = "1";
-                        draggedId = null;
-                        const allItems = list.querySelectorAll('[draggable]');
-                        allItems.forEach(i => i.classList.remove('drag-over'));
-                    };
-                    btn.ondragover = (e) => {
-                        e.preventDefault();
-                        if (draggedId !== item.firebaseId) btn.classList.add('drag-over');
-                    };
+                    btn.draggable = true;
+                    btn.ondragstart = (e) => draggedId = item.firebaseId;
+                    btn.ondragover = (e) => { e.preventDefault(); btn.classList.add('drag-over'); };
                     btn.ondragleave = () => btn.classList.remove('drag-over');
                     btn.ondrop = async (e) => {
-                        e.preventDefault();
-                        if (draggedId && draggedId !== item.firebaseId) {
-                            await reorderHistory(draggedId, item.firebaseId);
-                        }
+                        btn.classList.remove('drag-over');
+                        if (draggedId && draggedId !== item.firebaseId) await reorderHistory(draggedId, item.firebaseId);
                     };
                 }
                 list.appendChild(btn);
             });
         }
 
-        // 重新排序雲端數據
         async function reorderHistory(sourceId, targetId) {
-            const sourceItem = historyData.find(h => h.firebaseId === sourceId);
-            const targetItem = historyData.find(h => h.firebaseId === targetId);
-            if (!sourceItem || !targetItem) return;
-
+            const source = historyData.find(h => h.firebaseId === sourceId);
+            const target = historyData.find(h => h.firebaseId === targetId);
             const batch = writeBatch(db);
-            const sourceRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', sourceId);
-            const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', targetId);
-
-            const tempOrder = sourceItem.order || 0;
-            batch.update(sourceRef, { order: targetItem.order || 0 });
-            batch.update(targetRef, { order: tempOrder });
-
+            const tempOrder = source.order;
+            batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'history', sourceId), { order: target.order });
+            batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'history', targetId), { order: tempOrder });
             await batch.commit();
+        }
+
+        function getStatusClass(status) {
+            const map = { '待付款': 'status-pending', '繪製中': 'status-drawing', '靜態確認': 'status-checking', '已交稿': 'status-delivered', '已完成': 'status-completed', '取消排單': 'status-cancelled' };
+            return map[status] || '';
         }
     </script>
 </body>
