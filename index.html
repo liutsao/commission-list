@@ -141,8 +141,8 @@
                             <th class="p-4 font-semibold border-b">委託人 ID</th>
                             <th class="p-4 font-semibold border-b">來源</th>
                             <th class="p-4 font-semibold border-b">進行狀態</th>
-                            <th class="p-4 font-semibold border-b">委託內容</th>
-                            <th class="p-4 font-semibold border-b text-right">委託金額</th>
+                            <th class="admin-only hidden p-4 font-semibold border-b">委託內容</th>
+                            <th class="admin-only hidden p-4 font-semibold border-b text-right">委託金額</th>
                             <th class="admin-only hidden p-4 font-semibold border-b text-center">操作</th>
                         </tr>
                     </thead>
@@ -307,9 +307,13 @@
                             ${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}
                         </select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}
                     </td>
-                    <td class="p-4 ${isAdmin ? '' : 'blurred'}">${isAdmin ? `<input type="text" value="${com.content}" onchange="updateData(${index}, 'content', this.value)" class="border p-1 rounded w-full">` : com.content}</td>
-                    <td class="p-4 text-right font-mono ${isAdmin ? '' : 'blurred'}">${isAdmin ? `<input type="number" value="${com.price}" onchange="updateData(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">` : `$${com.price.toLocaleString()}`}</td>
                     ${isAdmin ? `
+                        <td class="p-4">
+                            <input type="text" value="${com.content}" onchange="updateData(${index}, 'content', this.value)" class="border p-1 rounded w-full">
+                        </td>
+                        <td class="p-4 text-right font-mono">
+                            <input type="number" value="${com.price}" onchange="updateData(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">
+                        </td>
                         <td class="p-4 text-center">
                             <div class="flex flex-col gap-1 items-center">
                                 <div class="flex gap-1">
@@ -501,5 +505,6 @@
 </body>
 
 </html>
+
 
 
