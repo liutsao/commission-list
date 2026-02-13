@@ -90,7 +90,12 @@
                         刪除此歷史表
                     </button>
                 </div>
-                <p class="text-gray-500 mt-2">最後更新時間：<span id="updateTime">---</span></p>
+                <p class="mt-3 inline-block bg-gray-100 text-gray-600 text-sm px-3 py-1 rounded-md">
+                    最後更新時間：<span id="updateTime">---</span>
+                </p>
+                <p id="tableNote" class="text-gray-500 text-sm mt-2 ml-1">
+                    ▍手機版請切換為電腦版畫面閱覽。
+    </p>
             </div>
             
             <div class="flex items-center gap-4">
@@ -142,13 +147,17 @@
         </div>
     </main>
 
+    <!-- 登入 Modal -->
     <div id="customModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl shadow-xl w-80">
             <h3 id="modalTitle" class="text-lg font-bold mb-4">管理員登入</h3>
-            <input type="password" id="modalInput" class="w-full border p-2 rounded mb-4" placeholder="請輸入密碼...">
-            <div class="flex justify-end gap-2">
+            <div class="space-y-3">
+                <input type="email" id="emailInput" class="w-full border p-2 rounded" placeholder="電子郵件">
+                <input type="password" id="passwordInput" class="w-full border p-2 rounded" placeholder="管理員密碼">
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
                 <button onclick="closeModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700">取消</button>
-                <button id="modalConfirm" class="px-4 py-2 bg-blue-600 text-white rounded">確認</button>
+                <button id="modalConfirm" class="px-4 py-2 bg-blue-600 text-white rounded">登入</button>
             </div>
         </div>
     </div>
@@ -156,17 +165,17 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, Timestamp, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase 配置
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyALtj1ceOZbR9xr7MpfU8lVf7HBKIbtuUU",
-            authDomain: "commission-list-ba286.firebaseapp.com",
-            projectId: "commission-list-ba286",
-            storageBucket: "commission-list-ba286.firebasestorage.app",
-            messagingSenderId: "242940980210",
-            appId: "1:242940980210:web:a6e362652faac8775dd96b"
+            apiKey: "",
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
         };
 
         const app = initializeApp(firebaseConfig);
@@ -182,20 +191,30 @@
         let viewingTableId = 'current';
         let draggedId = null;
 
-        // 初始化驗證
+        // 初始化驗證 (預設匿名登入以便讀取資料)
         const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            // 如果目前沒有 user，則進行匿名登入
+            if (!auth.currentUser) {
+                try {
+                    await signInAnonymously(auth);
+                } catch (e) {
+                    console.error("Auth init failed", e);
+                }
             }
         };
 
         initAuth();
 
+        // 監聽身分狀態
         onAuthStateChanged(auth, (u) => {
             user = u;
-            if (user) setupListeners();
+            // 判定是否為管理員：必須已登入且「非匿名」
+            isAdmin = u && !u.isAnonymous;
+            
+            if (user) {
+                setupListeners();
+                toggleAdminUI();
+            }
         });
 
         // 監聽數據
@@ -207,17 +226,16 @@
             onSnapshot(currentDocRef, (snap) => {
                 if (snap.exists()) {
                     currentTableData = snap.data();
-                    // 資料格式相容處理
                     currentTableData.commissions.forEach(c => {
                         if (typeof c.source === 'string') c.source = { text: c.source, link: '' };
                     });
                 } else {
                     currentTableData = { title: "2024年 委託排單表", lastUpdate: new Date().toLocaleString(), commissions: [] };
-                    saveTable('current', currentTableData);
+                    if(isAdmin) saveTable('current', currentTableData);
                 }
                 if (viewingTableId === 'current') renderTable(currentTableData);
                 document.getElementById('loading').classList.add('hidden');
-            });
+            }, (err) => console.error("Firestore error:", err));
 
             // 監聽歷史紀錄
             const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'history');
@@ -290,8 +308,8 @@
                         <td class="p-4 text-center">
                             <div class="flex flex-col gap-1 items-center">
                                 <div class="flex gap-1">
-                                    <button onclick="moveRow(${index}, -1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === 0 ? 'invisible' : ''}" title="上移">▲</button>
-                                    <button onclick="moveRow(${index}, 1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === data.commissions.length - 1 ? 'invisible' : ''}" title="下移">▼</button>
+                                    <button onclick="moveRow(${index}, -1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === 0 ? 'invisible' : ''}">↑</button>
+                                    <button onclick="moveRow(${index}, 1)" class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 ${index === data.commissions.length - 1 ? 'invisible' : ''}">↓</button>
                                 </div>
                                 <button onclick="deleteRow(${index})" class="text-xs text-red-400 hover:text-red-600 mt-1">刪除</button>
                             </div>
@@ -305,7 +323,7 @@
 
         // 資料同步函數
         async function saveTable(id, data) {
-            if (!user) return;
+            if (!isAdmin) return; // 只有管理員能儲存
             const docRef = id === 'current' 
                 ? doc(db, 'artifacts', appId, 'public', 'data', 'tables', 'current')
                 : doc(db, 'artifacts', appId, 'public', 'data', 'history', id);
@@ -341,15 +359,11 @@
             saveTable(viewingTableId, table);
         };
 
-        // 新增：上移/下移功能
         window.moveRow = function(index, direction) {
             const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
             const newIndex = index + direction;
             if (newIndex < 0 || newIndex >= table.commissions.length) return;
-
-            // 交換陣列元素
             [table.commissions[index], table.commissions[newIndex]] = [table.commissions[newIndex], table.commissions[index]];
-            
             table.lastUpdate = new Date().toLocaleString();
             saveTable(viewingTableId, table);
         };
@@ -374,20 +388,32 @@
             await addDoc(historyCol, { title: "手動新增歷史表", lastUpdate: new Date().toLocaleString(), order: historyData.length, commissions: [] });
         };
 
-        // UI 邏輯
+        // --- 安全驗證邏輯 ---
+
         window.promptLogin = function() {
-            document.getElementById('modalInput').value = '';
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
             document.getElementById('customModal').classList.remove('hidden');
-            document.getElementById('modalConfirm').onclick = () => {
-                if(document.getElementById('modalInput').value === "kk7680771") {
-                    isAdmin = true;
-                    toggleAdminUI();
+            document.getElementById('modalConfirm').onclick = async () => {
+                const email = document.getElementById('emailInput').value;
+                const password = document.getElementById('passwordInput').value;
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
                     closeModal();
-                } else { alert('密碼錯誤'); }
+                } catch (e) {
+                    alert('登入失敗：帳號或密碼錯誤');
+                }
             };
         };
 
-        window.logout = function() { isAdmin = false; viewingTableId = 'current'; toggleAdminUI(); };
+        window.logout = async function() {
+            await signOut(auth);
+            // 登出後自動切換回匿名登入以維持讀取能力
+            await signInAnonymously(auth);
+            viewingTableId = 'current';
+            toggleAdminUI();
+        };
+
         window.closeModal = () => document.getElementById('customModal').classList.add('hidden');
 
         function toggleAdminUI() {
@@ -406,14 +432,14 @@
                 tableTitle.classList.add('hidden');
                 adminCols.forEach(el => el.classList.remove('hidden'));
                 const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-                document.getElementById('titleInput').value = table.title;
+                if(table) document.getElementById('titleInput').value = table.title;
             } else {
                 adminControls.classList.add('hidden'); loginBtn.classList.remove('hidden');
                 sidebar.classList.add('hidden'); editActions.classList.add('hidden');
                 editTitleSection.classList.add('hidden'); tableTitle.classList.remove('hidden');
                 adminCols.forEach(el => el.classList.add('hidden'));
             }
-            renderTable(viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId));
+            if(currentTableData) renderTable(viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId));
         }
 
         document.getElementById('titleInput').oninput = (e) => {
