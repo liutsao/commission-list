@@ -59,6 +59,11 @@
         .drag-over {
             border-top: 3px solid #6366f1 !important;
         }
+        
+        .force-no-wrap {
+            white-space: nowrap !important; /* 強制文字不換行 */
+            overflow: visible !important;     /* 允許內容超出單元格範圍 */
+        }
     </style>
 </head>
 <body class="min-h-screen flex">
@@ -295,9 +300,9 @@
                 }
 
                 tr.innerHTML = `
-                    <td class="p-4">${isAdmin ? `<input type="text" value="${com.id}" onchange="updateData(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
-                    <td class="p-4">${sourceHTML}</td>
-                    <td class="p-4">
+                    <td class="p-4 force-no-wrap">${isAdmin ? `<input type="text" value="${com.id}" onchange="updateData(${index}, 'id', this.value)" class="border p-1 rounded w-full">` : `<span class="font-medium">${com.id}</span>`}</td>
+                    <td class="p-4 force-no-wrap">${sourceHTML}</td>
+                    <td class="p-4 force-no-wrap">
                         ${isAdmin ? `<select onchange="updateData(${index}, 'status', this.value)" class="border p-1 rounded w-full">
                             ${['待付款','繪製中','靜態確認','已交稿','已完成','取消排單'].map(s => `<option value="${s}" ${s === com.status ? 'selected' : ''}>${s}</option>`).join('')}
                         </select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}
@@ -496,4 +501,5 @@
 </body>
 
 </html>
+
 
