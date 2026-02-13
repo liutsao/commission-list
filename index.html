@@ -327,8 +327,12 @@
                         </select>` : `<span class="status-badge ${getStatusClass(com.status)}">${com.status}</span>`}
                     </td>
                     ${isAdmin ? `
-                        <td class="p-4">
-                            <input type="text" value="${com.content}" onchange="updateData(${index}, 'content', this.value)" class="border p-1 rounded w-full">
+                        <td class="p-5">
+                            <textarea 
+                                oninput="autoResize(this); updateData(${index}, 'content', this.value)" 
+                                class="border border-gray-200 p-1.5 rounded-lg w-full text-sm outline-none focus:border-blue-400 resize-none overflow-hidden"
+                                rows="1"
+                            >${com.content}</textarea>
                         </td>
                         <td class="p-4 text-right font-mono">
                             <input type="number" value="${com.price}" onchange="updateData(${index}, 'price', this.value)" class="border p-1 rounded w-24 text-right">
@@ -347,6 +351,7 @@
                 tbody.appendChild(tr);
             });
             totalDisplay.innerText = total.toLocaleString();
+            document.querySelectorAll('textarea').forEach(el => autoResize(el));
         };
 
         // 資料同步函數
@@ -444,6 +449,13 @@
 
         window.closeModal = () => document.getElementById('customModal').classList.add('hidden');
 
+        window.autoResize = function(element) {
+            // 重置高度，確保刪除文字時高度能縮回
+            element.style.height = 'auto';
+            // 根據內容的滾動高度設定實際高度
+            element.style.height = element.scrollHeight + 'px';
+        };
+
         function toggleAdminUI() {
             const adminControls = document.getElementById('adminControls');
             const loginBtn = document.getElementById('loginBtn');
@@ -524,6 +536,7 @@
 </body>
 
 </html>
+
 
 
 
