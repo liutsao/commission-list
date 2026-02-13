@@ -348,7 +348,7 @@
 
         window.addCommission = function() {
             const table = viewingTableId === 'current' ? currentTableData : historyData.find(h => h.firebaseId === viewingTableId);
-            table.commissions.push({ id: '新委託', source: { text: '-', link: '' }, status: '待付款', content: '無', price: 0 });
+            table.commissions.unshift({ id: '新委託', source: { text: '-', link: '' }, status: '待付款', content: '無', price: 0 });
             saveTable(viewingTableId, table);
         };
 
@@ -496,3 +496,4 @@
 </body>
 
 </html>
+
